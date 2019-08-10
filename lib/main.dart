@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 void main() => runApp(MyApp());
 
@@ -10,7 +12,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SignInPage(),
+      routes: <String, WidgetBuilder>{
+        '/memo': (BuildContext context) => MyHomePage(title: 'メモ画面')
+      },
     );
   }
 }
@@ -27,7 +32,28 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final List<MemoItem> _items = List();
   final TextEditingController _controller = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  Future _login() async {
+    var _result = await _auth.signInAnonymously();
+    if (_result.user != null) {
+      // ログインされた
+      print('ログイン成功');
+    } else {
+      print('ログイン失敗');
+    }
+  }
+
+  Future checkUserID() async {
+    var user = await FirebaseAuth.instance.currentUser();
+    String userId = user.uid;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _login();
+  }
 
   @override
   void dispose() {
@@ -152,6 +178,88 @@ class MemoItem extends StatelessWidget {
               ),
             ),
           )
+        ],
+      ),
+    );
+  }
+}
+
+class SignInPage extends StatefulWidget {
+  @override
+  _SignInPageState createState() => _SignInPageState();
+}
+
+class _SignInPageState extends State<SignInPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _passwordConfirmController = TextEditingController();
+
+  Future _pageTransition() async {
+    if (await FirebaseAuth.instance.currentUser() != null) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/memo', (_) => false);
+    }
+  }
+
+  Future _singUp(String email, String pass) async {
+    if (email.isNotEmpty && pass.isNotEmpty) {
+      var _result = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: pass);
+      if (_result.user != null) {
+        // ログイン成功
+        Navigator.of(context).pushNamedAndRemoveUntil('/memo', (_) => false);
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageTransition();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          TextField(
+            decoration: InputDecoration(
+              labelText: 'メールアドレス',
+              border: OutlineInputBorder(),
+            ),
+            controller: _emailController,
+            maxLines: 1,
+          ),
+          TextField(
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'パスワード(確認)',
+              border: OutlineInputBorder(),
+            ),
+            controller: _passwordController,
+            maxLines: 1,
+          ),
+          TextField(
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'パスワード(確認)',
+              border: OutlineInputBorder(),
+            ),
+            controller: _passwordConfirmController,
+            maxLines: 1,
+          ),
+          FlatButton(
+            onPressed: () {
+              if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty && _passwordController.text == _passwordConfirmController.text) {
+                _singUp(_emailController.text, _passwordController.text);
+              } else {
+                print('入力内容に問題があります');
+              }
+            },
+            color: Colors.blue,
+            child: Text('登録する'),
+          ),
         ],
       ),
     );
